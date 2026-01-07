@@ -19,7 +19,8 @@ export const useLogin = (authService: IAuthService) => {
         setError(response.error || "Login failed");
       }
       return response;
-    } catch {
+    } catch (err) {
+      console.error("Login failed", err);
       setError("An unexpected error occurred");
       return { success: false, error: "An unexpected error occurred" };
     } finally {
