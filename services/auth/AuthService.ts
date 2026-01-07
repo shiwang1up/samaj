@@ -1,13 +1,11 @@
-import { Platform } from "react-native";
+import { Config } from "../../constants/Config";
 import { AuthResponse, IAuthService, RegisterData } from "./IAuthService";
 
 export class AuthService implements IAuthService {
   private baseUrl: string;
 
   constructor() {
-    // 10.0.2.2 is the localhost alias for Android emulator
-    const host = Platform.OS === "android" ? "10.0.2.2" : "localhost";
-    this.baseUrl = `http://${host}:4000/api/auth`;
+    this.baseUrl = Config.API_BASE_URL;
   }
 
   async login(email: string, password: string): Promise<AuthResponse> {
@@ -33,7 +31,8 @@ export class AuthService implements IAuthService {
         success: true,
         token: data.token,
       };
-    } catch {
+    } catch (error) {
+      console.error("AuthService login failed:", error);
       return {
         success: false,
         error: "Network error occurred",
@@ -64,7 +63,39 @@ export class AuthService implements IAuthService {
         success: true,
         token: data.token,
       };
-    } catch {
+    } catch (error) {
+      console.error("AuthService register failed:", error);
+      return {
+        success: false,
+        error: "Network error occurred",
+      };
+    }
+  }
+
+  async logout(token: string): Promise<AuthResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.message || "Logout failed",
+        };
+      }
+
+      return {
+        success: true,
+      };
+    } catch (error) {
+      console.error("AuthService logout failed:", error);
       return {
         success: false,
         error: "Network error occurred",

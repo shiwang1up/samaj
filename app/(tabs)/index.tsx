@@ -1,15 +1,20 @@
 import { useRouter } from 'expo-router';
-import { Text, TouchableOpacity, View } from 'react-native';
-import { StyleSheet } from 'react-native-unistyles';
+import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { useLogout } from '../../hooks/useLogout';
+import { AuthService } from '../../services/auth/AuthService';
 import { SecureStorageService } from '../../services/storage/SecureStorageService';
 
+const authService = new AuthService();
 const storageService = new SecureStorageService();
 
 export default function HomeScreen() {
+    const { theme } = useUnistyles();
     const router = useRouter();
+    const { logout, loading } = useLogout(authService, storageService);
 
     const handleLogout = async () => {
-        await storageService.removeItem('authToken');
+        await logout();
         router.replace('/login');
     };
 
@@ -18,8 +23,16 @@ export default function HomeScreen() {
             <Text style={styles.title}>Welcome Home</Text>
             <Text style={styles.subtitle}>You are now logged in.</Text>
 
-            <TouchableOpacity style={styles.button} onPress={handleLogout}>
-                <Text style={styles.buttonText}>Log Out</Text>
+            <TouchableOpacity
+                style={styles.button}
+                onPress={handleLogout}
+                disabled={loading}
+            >
+                {loading ? (
+                    <ActivityIndicator color={theme.colors.activeTint} />
+                ) : (
+                    <Text style={styles.buttonText}>Log Out</Text>
+                )}
             </TouchableOpacity>
         </View>
     );

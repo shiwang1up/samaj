@@ -16,7 +16,7 @@ export class SecureStorageService implements IStorageService {
       return await SecureStore.getItemAsync(key);
     } catch (error) {
       console.error("Error getting item from secure store:", error);
-      return null;
+      throw error;
     }
   }
 

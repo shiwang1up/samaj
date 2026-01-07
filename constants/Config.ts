@@ -1,0 +1,8 @@
+import { Platform } from "react-native";
+
+const HOST = Platform.OS === "android" ? "10.0.2.2" : "localhost";
+const API_BASE_URL = `http://${HOST}:4000/api/auth`;
+
+export const Config = {
+  API_BASE_URL,
+};

@@ -29,4 +29,14 @@ export class DummyAuthService implements IAuthService {
       }, 1000);
     });
   }
+
+  async logout(token: string): Promise<AuthResponse> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          success: true,
+        });
+      }, 500);
+    });
+  }
 }

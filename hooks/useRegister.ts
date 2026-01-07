@@ -5,7 +5,12 @@ import {
   RegisterData,
 } from "../services/auth/IAuthService";
 
-export const useRegister = (authService: IAuthService) => {
+import { IStorageService } from "../services/storage/IStorageService";
+
+export const useRegister = (
+  authService: IAuthService,
+  storageService: IStorageService
+) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -17,7 +22,8 @@ export const useRegister = (authService: IAuthService) => {
       const response = await authService.register(data);
       if (response.success && response.token) {
         setToken(response.token);
-        console.log("Registration successful:", response.token);
+        await storageService.setItem("authToken", response.token);
+        console.log("Registration successful, token saved:", response.token);
       } else {
         setError(response.error || "Registration failed");
       }

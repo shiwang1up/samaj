@@ -15,4 +15,5 @@ export interface RegisterData {
 export interface IAuthService {
   login(email: string, password: string): Promise<AuthResponse>;
   register(data: RegisterData): Promise<AuthResponse>;
+  logout(token: string): Promise<AuthResponse>;
 }

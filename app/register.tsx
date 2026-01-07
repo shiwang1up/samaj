@@ -14,13 +14,15 @@ import {
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useRegister } from '../hooks/useRegister';
 import { AuthService } from '../services/auth/AuthService';
+import { SecureStorageService } from '../services/storage/SecureStorageService';
 
 const authService = new AuthService();
+const storageService = new SecureStorageService();
 
 export default function RegisterScreen() {
     const { theme } = useUnistyles();
     const router = useRouter();
-    const { register, loading, error } = useRegister(authService);
+    const { register, loading, error } = useRegister(authService, storageService);
 
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -44,7 +46,7 @@ export default function RegisterScreen() {
 
         if (result.success) {
             Alert.alert('Success', 'Account created successfully!', [
-                { text: 'OK', onPress: () => router.replace('/login') }
+                { text: 'OK', onPress: () => router.replace('/(tabs)') }
             ]);
         }
     };
@@ -142,7 +144,7 @@ export default function RegisterScreen() {
                         <View style={styles.footer}>
                             <Text style={styles.footerText}>
                                 Already have an account?{' '}
-                                <Text style={styles.link} onPress={() => router.back()}>Log In</Text>
+                                <Text style={styles.link} onPress={() => router.replace('/login')}>Log In</Text>
                             </Text>
                         </View>
                     </View>
