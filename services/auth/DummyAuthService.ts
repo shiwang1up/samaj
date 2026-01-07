@@ -1,10 +1,10 @@
-import { IAuthService, LoginResponse } from "./IAuthService";
+import { AuthResponse, IAuthService, RegisterData } from "./IAuthService";
 
 export class DummyAuthService implements IAuthService {
-  async login(username: string, password: string): Promise<LoginResponse> {
+  async login(email: string, password: string): Promise<AuthResponse> {
     return new Promise((resolve) => {
       setTimeout(() => {
-        if (username === "user" && password === "password") {
+        if (email === "tonystark@gmail.com" && password === "aam ka achaar") {
           resolve({
             success: true,
             token: "dummy-jwt-token-123456",
@@ -16,6 +16,17 @@ export class DummyAuthService implements IAuthService {
           });
         }
       }, 1000); // Simulate network delay
+    });
+  }
+
+  async register(data: RegisterData): Promise<AuthResponse> {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          success: true,
+          token: "dummy-registered-token-987654",
+        });
+      }, 1000);
     });
   }
 }
