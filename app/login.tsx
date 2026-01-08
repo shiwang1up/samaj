@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
@@ -12,24 +12,29 @@ import {
 } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useLogin } from '../hooks/useLogin';
-import { DummyAuthService } from '../services/auth/DummyAuthService';
+import { AuthService } from '../services/auth/AuthService';
+import { SecureStorageService } from '../services/storage/SecureStorageService';
 
-const authService = new DummyAuthService();
+const authService = new AuthService();
+const storageService = new SecureStorageService();
 
 export default function LoginScreen() {
+    const router = useRouter();
     const { theme } = useUnistyles();
-    const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const { login, loading, error } = useLogin(authService);
+    const { login, loading, error } = useLogin(authService, storageService);
 
     const handleLogin = async () => {
-        if (!username || !password) {
-            Alert.alert('Error', 'Please enter both username and password.');
+        if (!email || !password) {
+            Alert.alert('Error', 'Please enter both email and password.');
             return;
         }
-        const result = await login(username, password);
+        const result = await login(email, password);
         if (result.success) {
-            Alert.alert('Success', 'Logged in successfully!');
+            Alert.alert('Success', 'Logged in successfully!', [
+                { text: 'OK', onPress: () => router.replace("/(tabs)") }
+            ]);
         }
     };
 
@@ -47,15 +52,16 @@ export default function LoginScreen() {
                     </Text>
 
                     <View style={styles.inputContainer}>
-                        <Text style={styles.label}>Username</Text>
+                        <Text style={styles.label}>Email</Text>
                         <TextInput
                             style={styles.input}
-                            placeholder="Enter your username"
+                            placeholder="Enter your email"
                             placeholderTextColor={theme.colors.placeholder}
-                            value={username}
-                            onChangeText={setUsername}
+                            value={email}
+                            onChangeText={setEmail}
                             autoCapitalize="none"
                             autoCorrect={false}
+                            keyboardType="email-address"
                         />
                     </View>
 
@@ -89,7 +95,7 @@ export default function LoginScreen() {
                     <View style={styles.footer}>
                         <Text style={styles.footerText}>
                             Don&apos;t have an account?{' '}
-                            <Text style={styles.link}>Sign Up</Text>
+                            <Text style={styles.link} onPress={() => router.push("/register")}>Sign Up</Text>
                         </Text>
                     </View>
                 </View>

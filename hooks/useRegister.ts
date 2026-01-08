@@ -1,8 +1,13 @@
 import { useState } from "react";
-import { AuthResponse, IAuthService } from "../services/auth/IAuthService";
+import {
+  AuthResponse,
+  IAuthService,
+  RegisterData,
+} from "../services/auth/IAuthService";
+
 import { IStorageService } from "../services/storage/IStorageService";
 
-export const useLogin = (
+export const useRegister = (
   authService: IAuthService,
   storageService: IStorageService
 ) => {
@@ -10,24 +15,20 @@ export const useLogin = (
   const [error, setError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
-  const login = async (
-    email: string,
-    password: string
-  ): Promise<AuthResponse> => {
+  const register = async (data: RegisterData): Promise<AuthResponse> => {
     setLoading(true);
     setError(null);
     try {
-      const response = await authService.login(email, password);
+      const response = await authService.register(data);
       if (response.success && response.token) {
         setToken(response.token);
         await storageService.setItem("authToken", response.token);
-        console.log("Login successful, token saved:", response.token);
+        console.log("Registration successful, token saved:", response.token);
       } else {
-        setError(response.error || "Login failed");
+        setError(response.error || "Registration failed");
       }
       return response;
-    } catch (err) {
-      console.error("Login failed", err);
+    } catch {
       setError("An unexpected error occurred");
       return { success: false, error: "An unexpected error occurred" };
     } finally {
@@ -36,7 +37,7 @@ export const useLogin = (
   };
 
   return {
-    login,
+    register,
     loading,
     error,
     token,
