@@ -14,15 +14,13 @@ import {
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useRegister } from '../hooks/useRegister';
 import { AuthService } from '../services/auth/AuthService';
-import { SecureStorageService } from '../services/storage/SecureStorageService';
 
 const authService = new AuthService();
-const storageService = new SecureStorageService();
 
 export default function RegisterScreen() {
     const { theme } = useUnistyles();
     const router = useRouter();
-    const { register, loading, error } = useRegister(authService, storageService);
+    const { register, loading, error } = useRegister(authService);
 
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -30,123 +28,190 @@ export default function RegisterScreen() {
     const [fullName, setFullName] = useState('');
     const [bio, setBio] = useState('');
 
+    const [focusedField, setFocusedField] = useState<string | null>(null);
+
     const handleRegister = async () => {
         if (!username || !email || !password || !fullName) {
-            Alert.alert('Error', 'Please fill in all required fields.');
+            Alert.alert('Validation', 'Please fill in all required fields.');
             return;
         }
-
-        const result = await register({
-            username,
-            email,
-            password,
-            fullName,
-            bio,
-        });
-
-        if (result.success) {
-            Alert.alert('Success', 'Account created successfully!', [
-                { text: 'OK', onPress: () => router.replace('/(tabs)') }
-            ]);
-        }
+        // context.signIn (called inside useRegister) updates isAuthenticated,
+        // which triggers useProtectedRoute to navigate to /(tabs) automatically.
+        await register({ username, email, password, fullName, bio });
     };
+
+    const fieldProps = (name: string) => ({
+        onFocus: () => setFocusedField(name),
+        onBlur:  () => setFocusedField(null),
+    });
+
+    const isFocused = (name: string) => focusedField === name;
 
     return (
         <>
             <Stack.Screen options={{ headerShown: false }} />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.container}
+                style={styles.root}
             >
-                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                    <View style={styles.contentContainer}>
-                        <Text style={styles.title}>Create Account</Text>
-                        <Text style={styles.subtitle}>
-                            Join us today!
-                        </Text>
+                <ScrollView
+                    contentContainerStyle={styles.scroll}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {/* ── Logo / Brand ── */}
+                    <View style={styles.brandRow}>
+                        <Text style={styles.brandIcon}>🏛</Text>
+                        <Text style={styles.brandName}>Samaj</Text>
+                    </View>
 
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Full Name</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter your full name"
-                                placeholderTextColor={theme.colors.placeholder}
-                                value={fullName}
-                                onChangeText={setFullName}
-                            />
-                        </View>
-
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Username</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Choose a username"
-                                placeholderTextColor={theme.colors.placeholder}
-                                value={username}
-                                onChangeText={setUsername}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                            />
-                        </View>
-
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Email</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter your email"
-                                placeholderTextColor={theme.colors.placeholder}
-                                value={email}
-                                onChangeText={setEmail}
-                                autoCapitalize="none"
-                                keyboardType="email-address"
-                            />
-                        </View>
-
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Password</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Create a password"
-                                placeholderTextColor={theme.colors.placeholder}
-                                value={password}
-                                onChangeText={setPassword}
-                                secureTextEntry
-                            />
-                        </View>
-
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Bio (Optional)</Text>
-                            <TextInput
-                                style={[styles.input, styles.textArea]}
-                                placeholder="Tell us about yourself"
-                                placeholderTextColor={theme.colors.placeholder}
-                                value={bio}
-                                onChangeText={setBio}
-                                multiline
-                            />
-                        </View>
-
-                        {error && <Text style={styles.errorText}>{error}</Text>}
-
+                    {/* ── Tab Switcher ── */}
+                    <View style={styles.tabBar}>
                         <TouchableOpacity
-                            style={styles.button}
-                            onPress={handleRegister}
-                            disabled={loading}
-                            activeOpacity={0.8}
+                            style={styles.tabInactive}
+                            onPress={() => router.replace('/login')}
+                            activeOpacity={0.7}
                         >
-                            {loading ? (
-                                <ActivityIndicator color={theme.colors.activeTint} />
-                            ) : (
-                                <Text style={styles.buttonText}>Sign Up</Text>
-                            )}
+                            <Text style={styles.tabTextInactive}>Sign In</Text>
                         </TouchableOpacity>
-
-                        <View style={styles.footer}>
-                            <Text style={styles.footerText}>
-                                Already have an account?{' '}
-                                <Text style={styles.link} onPress={() => router.replace('/login')}>Log In</Text>
-                            </Text>
+                        <View style={styles.tabActive}>
+                            <Text style={styles.tabTextActive}>Join Samaj</Text>
                         </View>
+                    </View>
+
+                    {/* ── Hero Copy ── */}
+                    <Text style={styles.headline}>Create your account</Text>
+                    <Text style={styles.subheadline}>
+                        Join a verified civic community today.
+                    </Text>
+
+                    {/* ── Full Name ── */}
+                    <Text style={styles.label}>Full Name</Text>
+                    <View style={[styles.inputWrapper, isFocused('fullName') && styles.inputWrapperFocused]}>
+                        <Text style={styles.inputIcon}>👤</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Your full name"
+                            placeholderTextColor={theme.colors.placeholder}
+                            value={fullName}
+                            onChangeText={setFullName}
+                            {...fieldProps('fullName')}
+                        />
+                    </View>
+
+                    {/* ── Username ── */}
+                    <Text style={styles.label}>Username</Text>
+                    <View style={[styles.inputWrapper, isFocused('username') && styles.inputWrapperFocused]}>
+                        <Text style={styles.inputIcon}>@</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="choose_a_handle"
+                            placeholderTextColor={theme.colors.placeholder}
+                            value={username}
+                            onChangeText={setUsername}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            {...fieldProps('username')}
+                        />
+                    </View>
+
+                    {/* ── Email ── */}
+                    <Text style={styles.label}>Email Address</Text>
+                    <View style={[styles.inputWrapper, isFocused('email') && styles.inputWrapperFocused]}>
+                        <Text style={styles.inputIcon}>✉</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="name@example.com"
+                            placeholderTextColor={theme.colors.placeholder}
+                            value={email}
+                            onChangeText={setEmail}
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                            {...fieldProps('email')}
+                        />
+                    </View>
+
+                    {/* ── Password ── */}
+                    <Text style={styles.label}>Password</Text>
+                    <View style={[styles.inputWrapper, isFocused('password') && styles.inputWrapperFocused]}>
+                        <Text style={styles.inputIcon}>🔒</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Create a strong password"
+                            placeholderTextColor={theme.colors.placeholder}
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry
+                            {...fieldProps('password')}
+                        />
+                    </View>
+
+                    {/* ── Bio (Optional) ── */}
+                    <Text style={styles.label}>Bio <Text style={styles.optionalTag}>(Optional)</Text></Text>
+                    <View style={[styles.inputWrapper, styles.textAreaWrapper, isFocused('bio') && styles.inputWrapperFocused]}>
+                        <TextInput
+                            style={[styles.input, styles.textArea]}
+                            placeholder="Tell your community about yourself…"
+                            placeholderTextColor={theme.colors.placeholder}
+                            value={bio}
+                            onChangeText={setBio}
+                            multiline
+                            numberOfLines={3}
+                            textAlignVertical="top"
+                            {...fieldProps('bio')}
+                        />
+                    </View>
+
+                    {/* ── Error ── */}
+                    {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+                    {/* ── Primary CTA ── */}
+                    <TouchableOpacity
+                        style={[styles.primaryBtn, loading && styles.primaryBtnDisabled]}
+                        onPress={handleRegister}
+                        disabled={loading}
+                        activeOpacity={0.85}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color={theme.colors.on_primary} />
+                        ) : (
+                            <Text style={styles.primaryBtnText}>Create Account  →</Text>
+                        )}
+                    </TouchableOpacity>
+
+                    {/* ── Divider ── */}
+                    <View style={styles.dividerRow}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerLabel}>OR VERIFY WITH</Text>
+                        <View style={styles.dividerLine} />
+                    </View>
+
+                    {/* ── Local Civic ID (Trust Badge button) ── */}
+                    <TouchableOpacity style={styles.civicBtn} activeOpacity={0.85}>
+                        <Text style={styles.civicIcon}>🪪</Text>
+                        <Text style={styles.civicBtnText}>Local Civic ID</Text>
+                    </TouchableOpacity>
+
+                    {/* ── Social Row ── */}
+                    <View style={styles.socialRow}>
+                        <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8}>
+                            <Text style={styles.socialIcon}>G</Text>
+                            <Text style={styles.socialText}>Google</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8}>
+                            <Text style={styles.socialIcon}></Text>
+                            <Text style={styles.socialText}>Apple</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* ── Footer ── */}
+                    <View style={styles.footer}>
+                        <Text style={styles.footerText}>
+                            {'Already have an account? '}
+                            <Text style={styles.footerLink} onPress={() => router.replace('/login')}>
+                                Sign In
+                            </Text>
+                        </Text>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -155,94 +220,237 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create((theme) => ({
-    container: {
+    root: {
         flex: 1,
-        backgroundColor: theme.colors.background,
+        backgroundColor: theme.colors.surface,
     },
-    scrollContent: {
+    scroll: {
         flexGrow: 1,
+        paddingHorizontal: theme.spacing.xl,
+        paddingTop: 64,
+        paddingBottom: theme.spacing['3xl'],
+    },
+
+    // ── Brand ──────────────────────────────────────────────────
+    brandRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: 24,
-        paddingVertical: 40,
+        marginBottom: theme.spacing['2xl'],
     },
-    contentContainer: {
-        width: '100%',
-        maxWidth: 400,
-        alignSelf: 'center',
+    brandIcon: {
+        fontSize: 24,
+        marginRight: 8,
     },
-    title: {
-        fontSize: 32,
-        fontWeight: '700',
-        marginBottom: theme.gap(1),
-        textAlign: 'left',
-        color: theme.colors.typography,
+    brandName: {
+        fontSize: theme.typography.sizes.title_lg,
+        fontWeight: theme.typography.weights.bold,
+        color: theme.colors.primary,
+        letterSpacing: theme.typography.tracking.title,
     },
-    subtitle: {
-        fontSize: 16,
-        marginBottom: theme.gap(4),
-        textAlign: 'left',
-        color: theme.colors.dimmed,
+
+    // ── Tab Switcher ───────────────────────────────────────────
+    tabBar: {
+        flexDirection: 'row',
+        backgroundColor: theme.colors.surface_container_low,
+        borderRadius: theme.radius.lg,
+        padding: 4,
+        marginBottom: theme.spacing['2xl'],
     },
-    inputContainer: {
-        marginBottom: theme.gap(2),
+    tabActive: {
+        flex: 1,
+        paddingVertical: theme.spacing.sm,
+        alignItems: 'center',
+        backgroundColor: theme.colors.surface_container_lowest,
+        borderRadius: theme.radius.md,
+        ...theme.elevation[1],
     },
+    tabInactive: {
+        flex: 1,
+        paddingVertical: theme.spacing.sm,
+        alignItems: 'center',
+    },
+    tabTextActive: {
+        fontSize: theme.typography.sizes.label_lg,
+        fontWeight: theme.typography.weights.bold,
+        color: theme.colors.primary,
+    },
+    tabTextInactive: {
+        fontSize: theme.typography.sizes.label_lg,
+        fontWeight: theme.typography.weights.medium,
+        color: theme.colors.on_surface_variant,
+    },
+
+    // ── Hero Copy ──────────────────────────────────────────────
+    headline: {
+        fontSize: theme.typography.sizes.headline_lg,
+        fontWeight: theme.typography.weights.extrabold,
+        color: theme.colors.primary,
+        letterSpacing: theme.typography.tracking.headline,
+        marginBottom: theme.spacing.xs,
+    },
+    subheadline: {
+        fontSize: theme.typography.sizes.body_md,
+        color: theme.colors.on_surface_variant,
+        marginBottom: theme.spacing['2xl'],
+    },
+
+    // ── Inputs ────────────────────────────────────────────────
     label: {
-        fontSize: 14,
-        fontWeight: '600',
-        marginBottom: theme.gap(1),
-        color: theme.colors.typography,
+        fontSize: theme.typography.sizes.label_md,
+        fontWeight: theme.typography.weights.semibold,
+        color: theme.colors.on_surface,
+        marginBottom: theme.spacing.xs,
+    },
+    optionalTag: {
+        fontWeight: theme.typography.weights.regular,
+        color: theme.colors.on_surface_variant,
+    },
+    inputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.colors.surface_container,
+        borderRadius: theme.radius.lg,
+        paddingHorizontal: theme.spacing.base,
+        height: 52,
+        marginBottom: theme.spacing.base,
+        borderWidth: 1,
+        borderColor: 'rgba(192, 201, 193, 0.15)',
+    },
+    inputWrapperFocused: {
+        borderBottomWidth: 2,
+        borderBottomColor: theme.colors.primary,
+        borderColor: 'rgba(192, 201, 193, 0.15)',
+    },
+    textAreaWrapper: {
+        height: 'auto' as any,
+        minHeight: 80,
+        alignItems: 'flex-start',
+        paddingVertical: theme.spacing.md,
+    },
+    inputIcon: {
+        fontSize: 16,
+        marginRight: 10,
+        color: theme.colors.on_surface_variant,
     },
     input: {
-        height: 52,
-        borderWidth: 1,
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        fontSize: 16,
-        color: theme.colors.typography,
-        borderColor: theme.colors.dimmed,
-        backgroundColor: theme.colors.background,
+        flex: 1,
+        fontSize: theme.typography.sizes.body_md,
+        color: theme.colors.on_surface,
     },
     textArea: {
-        height: 100,
-        paddingTop: 16,
+        minHeight: 60,
         textAlignVertical: 'top',
+        paddingTop: 2,
     },
-    button: {
-        height: 52,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 10,
-        backgroundColor: theme.colors.tint,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 4,
-        },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    buttonText: {
-        color: theme.colors.activeTint,
-        fontSize: 16,
-        fontWeight: '600',
-    },
+
+    // ── Error ─────────────────────────────────────────────────
     errorText: {
-        color: theme.colors.accents.apple,
-        marginBottom: 20,
+        color: theme.colors.error,
+        fontSize: theme.typography.sizes.body_sm,
+        marginBottom: theme.spacing.base,
         textAlign: 'center',
     },
+
+    // ── Primary Button ────────────────────────────────────────
+    primaryBtn: {
+        height: 52,
+        borderRadius: theme.radius.xl,
+        backgroundColor: theme.colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: theme.spacing.xl,
+        ...theme.elevation[2],
+    },
+    primaryBtnDisabled: {
+        opacity: 0.6,
+    },
+    primaryBtnText: {
+        fontSize: theme.typography.sizes.title_sm,
+        fontWeight: theme.typography.weights.bold,
+        color: theme.colors.on_primary,
+        letterSpacing: 0.3,
+    },
+
+    // ── Divider ───────────────────────────────────────────────
+    dividerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: theme.spacing.xl,
+        gap: theme.spacing.sm,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: theme.colors.surface_container_highest,
+    },
+    dividerLabel: {
+        fontSize: theme.typography.sizes.label_sm,
+        fontWeight: theme.typography.weights.semibold,
+        color: theme.colors.on_surface_variant,
+        letterSpacing: 1.2,
+    },
+
+    // ── Civic ID (Trust Badge CTA) ────────────────────────────
+    civicBtn: {
+        height: 52,
+        borderRadius: theme.radius.lg,
+        backgroundColor: theme.colors.tertiary_container,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        marginBottom: theme.spacing.base,
+        ...theme.elevation[1],
+    },
+    civicIcon: {
+        fontSize: 18,
+    },
+    civicBtnText: {
+        fontSize: theme.typography.sizes.label_lg,
+        fontWeight: theme.typography.weights.semibold,
+        color: theme.colors.tertiary_fixed,
+    },
+
+    // ── Social Row ────────────────────────────────────────────
+    socialRow: {
+        flexDirection: 'row',
+        gap: theme.spacing.sm,
+        marginBottom: theme.spacing['2xl'],
+    },
+    socialBtn: {
+        flex: 1,
+        height: 48,
+        borderRadius: theme.radius.lg,
+        backgroundColor: theme.colors.surface_container_lowest,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        borderWidth: 1,
+        borderColor: theme.colors.surface_container_highest,
+    },
+    socialIcon: {
+        fontSize: 16,
+        fontWeight: theme.typography.weights.bold,
+        color: theme.colors.on_surface,
+    },
+    socialText: {
+        fontSize: theme.typography.sizes.label_md,
+        fontWeight: theme.typography.weights.medium,
+        color: theme.colors.on_surface,
+    },
+
+    // ── Footer ────────────────────────────────────────────────
     footer: {
-        marginTop: 24,
         alignItems: 'center',
     },
     footerText: {
-        fontSize: 14,
-        color: theme.colors.dimmed,
+        fontSize: theme.typography.sizes.body_sm,
+        color: theme.colors.on_surface_variant,
     },
-    link: {
-        fontWeight: '600',
-        color: theme.colors.tint,
-    }
+    footerLink: {
+        fontWeight: theme.typography.weights.bold,
+        color: theme.colors.primary,
+    },
 }));

@@ -5,6 +5,7 @@ import {
     Alert,
     KeyboardAvoidingView,
     Platform,
+    ScrollView,
     Text,
     TextInput,
     TouchableOpacity,
@@ -13,29 +14,26 @@ import {
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useLogin } from '../hooks/useLogin';
 import { AuthService } from '../services/auth/AuthService';
-import { SecureStorageService } from '../services/storage/SecureStorageService';
 
 const authService = new AuthService();
-const storageService = new SecureStorageService();
 
 export default function LoginScreen() {
     const router = useRouter();
     const { theme } = useUnistyles();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const { login, loading, error } = useLogin(authService, storageService);
+    const [emailFocused, setEmailFocused] = useState(false);
+    const [passwordFocused, setPasswordFocused] = useState(false);
+    const { login, loading, error } = useLogin(authService);
 
     const handleLogin = async () => {
         if (!email || !password) {
-            Alert.alert('Error', 'Please enter both email and password.');
+            Alert.alert('Validation', 'Please enter both email and password.');
             return;
         }
-        const result = await login(email, password);
-        if (result.success) {
-            Alert.alert('Success', 'Logged in successfully!', [
-                { text: 'OK', onPress: () => router.replace("/(tabs)") }
-            ]);
-        }
+        // context.signIn (called inside useLogin) flips isAuthenticated,
+        // which causes useProtectedRoute to navigate to /(tabs) automatically.
+        await login(email, password);
     };
 
     return (
@@ -43,148 +41,365 @@ export default function LoginScreen() {
             <Stack.Screen options={{ headerShown: false }} />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.container}
+                style={styles.root}
             >
-                <View style={styles.contentContainer}>
-                    <Text style={styles.title}>Welcome Back</Text>
-                    <Text style={styles.subtitle}>
-                        Sign in to continue
+                <ScrollView
+                    contentContainerStyle={styles.scroll}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {/* ── Logo / Brand ── */}
+                    <View style={styles.brandRow}>
+                        <Text style={styles.brandIcon}>🏛</Text>
+                        <Text style={styles.brandName}>Samaj</Text>
+                    </View>
+
+                    {/* ── Tab Switcher ── */}
+                    <View style={styles.tabBar}>
+                        <View style={styles.tabActive}>
+                            <Text style={styles.tabTextActive}>Sign In</Text>
+                        </View>
+                        <TouchableOpacity
+                            style={styles.tabInactive}
+                            onPress={() => router.replace('/register')}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={styles.tabTextInactive}>Join Samaj</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* ── Hero Copy ── */}
+                    <Text style={styles.headline}>Welcome back</Text>
+                    <Text style={styles.subheadline}>
+                        Access your verified civic dashboard.
                     </Text>
 
-                    <View style={styles.inputContainer}>
-                        <Text style={styles.label}>Email</Text>
+                    {/* ── Email ── */}
+                    <Text style={styles.label}>Email Address</Text>
+                    <View style={[styles.inputWrapper, emailFocused && styles.inputWrapperFocused]}>
+                        <Text style={styles.inputIcon}>✉</Text>
                         <TextInput
                             style={styles.input}
-                            placeholder="Enter your email"
+                            placeholder="name@example.com"
                             placeholderTextColor={theme.colors.placeholder}
                             value={email}
                             onChangeText={setEmail}
                             autoCapitalize="none"
                             autoCorrect={false}
                             keyboardType="email-address"
+                            onFocus={() => setEmailFocused(true)}
+                            onBlur={() => setEmailFocused(false)}
                         />
                     </View>
 
-                    <View style={styles.inputContainer}>
-                        <Text style={styles.label}>Password</Text>
+                    {/* ── Password ── */}
+                    <Text style={styles.label}>Password</Text>
+                    <View style={[styles.inputWrapper, passwordFocused && styles.inputWrapperFocused]}>
+                        <Text style={styles.inputIcon}>🔒</Text>
                         <TextInput
                             style={styles.input}
-                            placeholder="Enter your password"
+                            placeholder="••••••••"
                             placeholderTextColor={theme.colors.placeholder}
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry
+                            onFocus={() => setPasswordFocused(true)}
+                            onBlur={() => setPasswordFocused(false)}
                         />
                     </View>
 
-                    {error && <Text style={styles.errorText}>{error}</Text>}
+                    {/* ── Forgot ── */}
+                    <TouchableOpacity style={styles.forgotRow} activeOpacity={0.7}>
+                        <Text style={styles.forgotText}>Forgot password?</Text>
+                    </TouchableOpacity>
 
+                    {/* ── Error ── */}
+                    {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+                    {/* ── Primary CTA ── */}
                     <TouchableOpacity
-                        style={styles.button}
+                        style={[styles.primaryBtn, loading && styles.primaryBtnDisabled]}
                         onPress={handleLogin}
                         disabled={loading}
-                        activeOpacity={0.8}
+                        activeOpacity={0.85}
                     >
                         {loading ? (
-                            <ActivityIndicator color={theme.colors.activeTint} />
+                            <ActivityIndicator color={theme.colors.on_primary} />
                         ) : (
-                            <Text style={styles.buttonText}>Log In</Text>
+                            <Text style={styles.primaryBtnText}>Sign In  →</Text>
                         )}
                     </TouchableOpacity>
 
+                    {/* ── Divider ── */}
+                    <View style={styles.dividerRow}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerLabel}>OR VERIFY WITH</Text>
+                        <View style={styles.dividerLine} />
+                    </View>
+
+                    {/* ── Local Civic ID (Trust Badge button) ── */}
+                    <TouchableOpacity style={styles.civicBtn} activeOpacity={0.85}>
+                        <Text style={styles.civicIcon}>🪪</Text>
+                        <Text style={styles.civicBtnText}>Local Civic ID</Text>
+                    </TouchableOpacity>
+
+                    {/* ── Social Row ── */}
+                    <View style={styles.socialRow}>
+                        <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8}>
+                            <Text style={styles.socialIcon}>G</Text>
+                            <Text style={styles.socialText}>Google</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.socialBtn} activeOpacity={0.8}>
+                            <Text style={styles.socialIcon}></Text>
+                            <Text style={styles.socialText}>Apple</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* ── Footer ── */}
                     <View style={styles.footer}>
                         <Text style={styles.footerText}>
-                            Don&apos;t have an account?{' '}
-                            <Text style={styles.link} onPress={() => router.push("/register")}>Sign Up</Text>
+                            {'Don\'t have an account? '}
+                            <Text style={styles.footerLink} onPress={() => router.replace('/register')}>
+                                Join Samaj
+                            </Text>
                         </Text>
                     </View>
-                </View>
+                </ScrollView>
             </KeyboardAvoidingView>
         </>
     );
 }
 
 const styles = StyleSheet.create((theme) => ({
-    container: {
+    root: {
         flex: 1,
-        paddingHorizontal: 24,
+        backgroundColor: theme.colors.surface,
+    },
+    scroll: {
+        flexGrow: 1,
+        paddingHorizontal: theme.spacing.xl,
+        paddingTop: 64,
+        paddingBottom: theme.spacing['3xl'],
+    },
+
+    // ── Brand ──────────────────────────────────────────────────
+    brandRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: theme.colors.background,
+        marginBottom: theme.spacing['2xl'],
     },
-    contentContainer: {
-        width: '100%',
-        maxWidth: 400,
-        alignSelf: 'center',
-        paddingBottom: 40,
+    brandIcon: {
+        fontSize: 24,
+        marginRight: 8,
     },
-    title: {
-        fontSize: 32,
-        fontWeight: '700',
-        marginBottom: theme.gap(1),
-        textAlign: 'left',
-        color: theme.colors.typography,
+    brandName: {
+        fontSize: theme.typography.sizes.title_lg,
+        fontWeight: theme.typography.weights.bold,
+        color: theme.colors.primary,
+        letterSpacing: theme.typography.tracking.title,
     },
-    subtitle: {
-        fontSize: 16,
-        marginBottom: theme.gap(5),
-        textAlign: 'left',
-        color: theme.colors.placeholder,
+
+    // ── Tab Switcher ───────────────────────────────────────────
+    tabBar: {
+        flexDirection: 'row',
+        backgroundColor: theme.colors.surface_container_low,
+        borderRadius: theme.radius.lg,
+        padding: 4,
+        marginBottom: theme.spacing['2xl'],
     },
-    inputContainer: {
-        marginBottom: theme.gap(2.5),
+    tabActive: {
+        flex: 1,
+        paddingVertical: theme.spacing.sm,
+        alignItems: 'center',
+        backgroundColor: theme.colors.surface_container_lowest,
+        borderRadius: theme.radius.md,
+        ...theme.elevation[1],
     },
+    tabInactive: {
+        flex: 1,
+        paddingVertical: theme.spacing.sm,
+        alignItems: 'center',
+    },
+    tabTextActive: {
+        fontSize: theme.typography.sizes.label_lg,
+        fontWeight: theme.typography.weights.bold,
+        color: theme.colors.primary,
+    },
+    tabTextInactive: {
+        fontSize: theme.typography.sizes.label_lg,
+        fontWeight: theme.typography.weights.medium,
+        color: theme.colors.on_surface_variant,
+    },
+
+    // ── Hero Copy ──────────────────────────────────────────────
+    headline: {
+        fontSize: theme.typography.sizes.headline_lg,
+        fontWeight: theme.typography.weights.extrabold,
+        color: theme.colors.primary,
+        letterSpacing: theme.typography.tracking.headline,
+        marginBottom: theme.spacing.xs,
+    },
+    subheadline: {
+        fontSize: theme.typography.sizes.body_md,
+        color: theme.colors.on_surface_variant,
+        marginBottom: theme.spacing['2xl'],
+    },
+
+    // ── Inputs ────────────────────────────────────────────────
     label: {
-        fontSize: 14,
-        fontWeight: '600',
-        marginBottom: theme.gap(1),
-        color: theme.colors.typography,
+        fontSize: theme.typography.sizes.label_md,
+        fontWeight: theme.typography.weights.semibold,
+        color: theme.colors.on_surface,
+        marginBottom: theme.spacing.xs,
+    },
+    inputWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: theme.colors.surface_container,
+        borderRadius: theme.radius.lg,
+        paddingHorizontal: theme.spacing.base,
+        height: 52,
+        marginBottom: theme.spacing.base,
+        // Ghost border — felt, not seen
+        borderWidth: 1,
+        borderColor: 'rgba(192, 201, 193, 0.15)',
+    },
+    inputWrapperFocused: {
+        borderBottomWidth: 2,
+        borderBottomColor: theme.colors.primary,
+        borderColor: 'rgba(192, 201, 193, 0.15)',
+    },
+    inputIcon: {
+        fontSize: 16,
+        marginRight: 10,
+        color: theme.colors.on_surface_variant,
     },
     input: {
-        height: 52,
-        borderWidth: 1,
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        fontSize: 16,
-        color: theme.colors.typography,
-        borderColor: theme.colors.dimmed,
-        backgroundColor: theme.colors.background,
+        flex: 1,
+        fontSize: theme.typography.sizes.body_md,
+        color: theme.colors.on_surface,
     },
-    button: {
-        height: 52,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 10,
-        backgroundColor: theme.colors.tint,
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 4,
-        },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
+
+    // ── Forgot ────────────────────────────────────────────────
+    forgotRow: {
+        alignItems: 'flex-end',
+        marginBottom: theme.spacing['2xl'],
     },
-    buttonText: {
-        color: theme.colors.activeTint,
-        fontSize: 16,
-        fontWeight: '600',
+    forgotText: {
+        fontSize: theme.typography.sizes.label_md,
+        fontWeight: theme.typography.weights.bold,
+        color: theme.colors.on_surface,
+        textDecorationLine: 'underline',
     },
+
+    // ── Error ─────────────────────────────────────────────────
     errorText: {
-        color: theme.colors.accents.apple,
-        marginBottom: 20,
+        color: theme.colors.error,
+        fontSize: theme.typography.sizes.body_sm,
+        marginBottom: theme.spacing.base,
         textAlign: 'center',
     },
+
+    // ── Primary Button ────────────────────────────────────────
+    primaryBtn: {
+        height: 52,
+        borderRadius: theme.radius.xl,
+        backgroundColor: theme.colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: theme.spacing.xl,
+        ...theme.elevation[2],
+    },
+    primaryBtnDisabled: {
+        opacity: 0.6,
+    },
+    primaryBtnText: {
+        fontSize: theme.typography.sizes.title_sm,
+        fontWeight: theme.typography.weights.bold,
+        color: theme.colors.on_primary,
+        letterSpacing: 0.3,
+    },
+
+    // ── Divider ───────────────────────────────────────────────
+    dividerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: theme.spacing.xl,
+        gap: theme.spacing.sm,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: theme.colors.surface_container_highest,
+    },
+    dividerLabel: {
+        fontSize: theme.typography.sizes.label_sm,
+        fontWeight: theme.typography.weights.semibold,
+        color: theme.colors.on_surface_variant,
+        letterSpacing: 1.2,
+    },
+
+    // ── Civic ID (Trust Badge CTA) ────────────────────────────
+    civicBtn: {
+        height: 52,
+        borderRadius: theme.radius.lg,
+        backgroundColor: theme.colors.tertiary_container,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        marginBottom: theme.spacing.base,
+        ...theme.elevation[1],
+    },
+    civicIcon: {
+        fontSize: 18,
+    },
+    civicBtnText: {
+        fontSize: theme.typography.sizes.label_lg,
+        fontWeight: theme.typography.weights.semibold,
+        color: theme.colors.tertiary_fixed,
+    },
+
+    // ── Social Row ────────────────────────────────────────────
+    socialRow: {
+        flexDirection: 'row',
+        gap: theme.spacing.sm,
+        marginBottom: theme.spacing['2xl'],
+    },
+    socialBtn: {
+        flex: 1,
+        height: 48,
+        borderRadius: theme.radius.lg,
+        backgroundColor: theme.colors.surface_container_lowest,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        borderWidth: 1,
+        borderColor: theme.colors.surface_container_highest,
+    },
+    socialIcon: {
+        fontSize: 16,
+        fontWeight: theme.typography.weights.bold,
+        color: theme.colors.on_surface,
+    },
+    socialText: {
+        fontSize: theme.typography.sizes.label_md,
+        fontWeight: theme.typography.weights.medium,
+        color: theme.colors.on_surface,
+    },
+
+    // ── Footer ────────────────────────────────────────────────
     footer: {
-        marginTop: 24,
         alignItems: 'center',
     },
     footerText: {
-        fontSize: 14,
-        color: theme.colors.placeholder,
+        fontSize: theme.typography.sizes.body_sm,
+        color: theme.colors.on_surface_variant,
     },
-    link: {
-        fontWeight: '600',
-        color: theme.colors.tint,
-    }
+    footerLink: {
+        fontWeight: theme.typography.weights.bold,
+        color: theme.colors.primary,
+    },
 }));

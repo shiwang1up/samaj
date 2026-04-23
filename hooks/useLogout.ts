@@ -1,34 +1,30 @@
-import { useState } from "react";
-import { IAuthService } from "../services/auth/IAuthService";
-import { IStorageService } from "../services/storage/IStorageService";
+/**
+ * useLogout – calls AuthContext.signOut which handles both API logout
+ * and secure storage cleanup in one atomic operation.
+ *
+ * SRP: callers only need to trigger logout; they don't manage storage.
+ * DIP: no longer depends on IStorageService — that's AuthContext's concern.
+ */
 
-export const useLogout = (
-  authService: IAuthService,
-  storageService: IStorageService
-) => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+import { useState } from 'react';
+import { useAuth }  from './useAuth';
 
-  const logout = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const token = await storageService.getItem("authToken");
-      if (token) {
-        await authService.logout(token);
-      }
-      // Always remove the token from storage, even if the API call fails
-      await storageService.removeItem("authToken");
-    } catch {
-      setError("An error occurred during logout");
-    } finally {
-      setLoading(false);
-    }
-  };
+export const useLogout = () => {
+    const { signOut }                   = useAuth();
+    const [loading, setLoading]         = useState(false);
+    const [error,   setError]           = useState<string | null>(null);
 
-  return {
-    logout,
-    loading,
-    error,
-  };
+    const logout = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            await signOut();
+        } catch {
+            setError('An error occurred during logout');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return { logout, loading, error };
 };
