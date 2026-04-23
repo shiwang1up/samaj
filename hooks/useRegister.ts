@@ -20,10 +20,12 @@ export const useRegister = (
     setError(null);
     try {
       const response = await authService.register(data);
-      if (response.success && response.token) {
-        setToken(response.token);
-        await storageService.setItem("authToken", response.token);
-        console.log("Registration successful, token saved:", response.token);
+      if (response.success) {
+        if (response.token) {
+          setToken(response.token);
+          await storageService.setItem("authToken", response.token);
+          console.log("Registration successful, token saved:", response.token);
+        }
       } else {
         setError(response.error || "Registration failed");
       }

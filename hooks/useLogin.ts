@@ -21,7 +21,7 @@ export const useLogin = (
       if (response.success && response.token) {
         setToken(response.token);
         await storageService.setItem("authToken", response.token);
-        console.log("Login successful, token saved:", response.token);
+        // console.log("Login successful, token saved:", response.token);
       } else {
         setError(response.error || "Login failed");
       }
