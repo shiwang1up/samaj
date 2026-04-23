@@ -19,8 +19,8 @@ export const useRegister = (authService: IAuthService) => {
         setError(null);
         try {
             const response = await authService.register(data);
-            if (response.success && response.token) {
-                await signIn(response.token);
+            if (response.success && response.token && response.user) {
+                await signIn(response.token, response.user);
             } else if (!response.success) {
                 setError(response.error ?? 'Registration failed');
             }

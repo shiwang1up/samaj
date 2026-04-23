@@ -31,7 +31,7 @@ export function useProtectedRoute() {
         if (isLoading) return;   // wait until token is read from storage
 
         const firstSegment  = segments[0] ?? '';
-        const onPublicRoute = isPublicSegment(firstSegment) || firstSegment === '';
+        const onPublicRoute = isPublicSegment(firstSegment) || (firstSegment as string) === '';
 
         if (!isAuthenticated && !onPublicRoute) {
             // Protected route accessed without a token → bounce to login

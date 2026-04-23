@@ -1,6 +1,14 @@
+export interface AuthUser {
+  _id: string;
+  username: string;
+  fullName: string;
+  profilePicture?: string;
+}
+
 export interface AuthResponse {
   success: boolean;
   token?: string;
+  user?: AuthUser;
   error?: string;
 }
 

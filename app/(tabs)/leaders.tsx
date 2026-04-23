@@ -6,7 +6,7 @@ export default function LeadersScreen() {
     return (
         <View style={styles.root}>
             <Text style={styles.emoji}>🏆</Text>
-            <Text style={styles.title}>Leaders</Text>
+            <Text style={styles.title}>Map</Text>
             <Text style={styles.sub}>Top civic advocates in your colony.</Text>
         </View>
     );

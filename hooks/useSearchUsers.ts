@@ -2,22 +2,23 @@
  * useSearchUsers – manages the user-search async flow.
  *
  * SOLID:
- *  SRP: only responsible for the search-users flow (loading / error / data).
- *  DIP: depends on IUserService interface, not the concrete UserService class.
- *       The caller (screen) injects the service, making this hook testable
- *       with any mock that satisfies IUserService.
+ *  SRP : only responsible for the search-users flow (loading / error / data).
+ *  DIP : depends on IUserService interface, injected by the screen.
+ *
+ * Note: no token parameter — authentication is handled transparently
+ * by the apiClient request interceptor.
  */
 
 import { useCallback, useState } from "react";
 import { IUserService, User } from "../services/user/IUserService";
 
 export const useSearchUsers = (userService: IUserService) => {
-  const [users, setUsers]   = useState<User[]>([]);
+  const [users, setUsers]     = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError]   = useState<string | null>(null);
+  const [error, setError]     = useState<string | null>(null);
 
   const searchUsers = useCallback(
-    async (query: string, token: string) => {
+    async (query: string) => {
       if (!query.trim()) {
         setUsers([]);
         return;
@@ -27,7 +28,7 @@ export const useSearchUsers = (userService: IUserService) => {
       setError(null);
 
       try {
-        const response = await userService.searchUsers(query, token);
+        const response = await userService.searchUsers(query);
         setUsers(response.users);
       } catch (err: any) {
         setError(err.message ?? "Failed to search users");

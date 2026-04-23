@@ -1,6 +1,14 @@
-// ─── IUserService ─────────────────────────────────────────────
-// OCP: extend with new methods without modifying consumers.
-// DIP: screens and hooks depend on this interface, not the concrete class.
+/**
+ * IUserService – contract for all user-domain API operations.
+ *
+ * OCP : extend with new methods (getProfile, follow, block…) without
+ *       modifying this interface or its consumers.
+ * DIP : screens and hooks depend on this interface, not UserService.
+ *
+ * Note: `token` is intentionally absent from all method signatures.
+ *       Authentication is a cross-cutting concern handled by the HTTP
+ *       layer (apiClient interceptor), not the service contract.
+ */
 
 export interface User {
   _id: string;
@@ -21,6 +29,6 @@ export interface UserSearchResponse {
 }
 
 export interface IUserService {
-  /** Search users by query string. Requires a valid JWT token. */
-  searchUsers(query: string, token: string): Promise<UserSearchResponse>;
+  /** Search users by a partial name or username query. */
+  searchUsers(query: string): Promise<UserSearchResponse>;
 }

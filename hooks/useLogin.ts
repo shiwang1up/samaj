@@ -19,9 +19,9 @@ export const useLogin = (authService: IAuthService) => {
         setError(null);
         try {
             const response = await authService.login(email, password);
-            if (response.success && response.token) {
-                // Persist token and update global auth state in one call
-                await signIn(response.token);
+            if (response.success && response.token && response.user) {
+                // Persist token, user, and update global auth state in one call
+                await signIn(response.token, response.user);
             } else {
                 setError(response.error ?? 'Login failed');
             }

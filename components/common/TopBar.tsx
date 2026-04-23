@@ -5,24 +5,30 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View, Image } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { useAuth } from '../../hooks/useAuth';
+import { Config } from '../../constants/Config';
+
+// ── Avatar URL helper ─────────────────────────────────────────
+const resolveUrl = (url: string | undefined) => {
+    if (!url) return null;
+    return url.includes('localhost') ? url.replace('localhost', Config.HOST) : url;
+};
 
 interface TopBarProps {
     onMenuPress?: () => void;
     onNotificationsPress?: () => void;
     onAvatarPress?: () => void;
-    /** Single uppercase letter shown in the avatar circle */
-    avatarLabel?: string;
 }
 
 export function TopBar({
     onMenuPress,
     onNotificationsPress,
     onAvatarPress,
-    avatarLabel = 'U',
 }: TopBarProps) {
     const { theme } = useUnistyles();
+    const { user } = useAuth();
 
     return (
         <View style={styles.bar}>
@@ -44,12 +50,19 @@ export function TopBar({
                     />
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[styles.avatar, { backgroundColor: theme.colors.primary_container }]}
+                    style={[
+                        styles.avatar,
+                        !resolveUrl(user?.profilePicture) && { backgroundColor: theme.colors.primary_container }
+                    ]}
                     onPress={onAvatarPress}
                 >
-                    <Text style={[styles.avatarText, { color: theme.colors.on_primary_container }]}>
-                        {avatarLabel}
-                    </Text>
+                    {resolveUrl(user?.profilePicture) ? (
+                        <Image source={{ uri: resolveUrl(user?.profilePicture)! }} style={styles.image} />
+                    ) : (
+                        <Text style={[styles.avatarText, { color: theme.colors.on_primary_container }]}>
+                            {user?.fullName?.[0]?.toUpperCase() ?? 'U'}
+                        </Text>
+                    )}
                 </TouchableOpacity>
             </View>
         </View>
@@ -93,6 +106,12 @@ const styles = StyleSheet.create((theme) => ({
         borderRadius: 17,
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden',
+    },
+    image: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
     },
     avatarText: {
         fontWeight: '700',

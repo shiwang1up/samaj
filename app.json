@@ -31,6 +31,13 @@
     "plugins": [
       "expo-router",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow this app to access your photos to attach them to your reports.",
+          "cameraPermission": "Allow this app to access your camera to capture photos for your reports."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",

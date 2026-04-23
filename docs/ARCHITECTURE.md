@@ -1,8 +1,47 @@
-# Samaj — Architecture & Coding Standards
+# Samaj — Architecture & AI Coding Guidelines
 
-> **Purpose**: This document is the single authoritative reference for how every feature in this codebase should be structured. Read this before writing any new screen, hook, service, or component.
+> **Purpose**: This document serves as the system prompt and authoritative reference for AI agents and human developers working on the Samaj codebase. 
 
 ---
+
+# PART 1: INSTRUCTIONS FOR AI AGENTS
+
+**CRITICAL DIRECTIVE:** Before writing or modifying any code, read this section to understand the architectural boundaries. You must strictly adhere to the patterns laid out in Part 2. Do not invent new patterns. Do not bypass established layers.
+
+## 1. File Reference Mapping
+When you need to perform a task, use these specific files as your reference for the correct pattern:
+
+| To implement this... | Read this file as your reference model... |
+|---|---|
+| A new **UI Screen** | `app/(tabs)/messages.tsx` (complex form) or `app/(tabs)/index.tsx` (feed) |
+| A new **Hook** | `hooks/usePosts.ts` (fetch) or `hooks/useCreatePost.ts` (submit) |
+| A new **API Service** | `services/post/PostService.ts` |
+| **API Error Handling** | `services/http/apiClient.ts` |
+| **Styling & Tokens** | `constants/unistyles.ts` |
+| **Optimistic Updates** | `app/(tabs)/index.tsx` (parent state) and `components/feed/CommentsBottomSheet.tsx` (nested state) |
+
+## 2. Hard Constraints & Prohibitions
+
+> [!CAUTION]
+> **THESE ARE NON-NEGOTIABLE:**
+> 1. **No `fetch()`:** Never use `fetch()`, `XMLHttpRequest`, or raw `axios` in any service. Always import `{ apiClient }` from `services/http/apiClient`. React Native's fetch polyfill crashes on iOS with Blob deallocation errors.
+> 2. **No arbitrary colors/spacing:** Never hardcode colors (`#FFF`), spacing (`margin: 10`), or fonts. You must use `theme.colors.*`, `theme.spacing.*`, etc., from `unistyles.ts`.
+> 3. **No manual Authorization headers:** The `apiClient` interceptor handles token injection automatically. Do not pass or set tokens in service method implementations.
+> 4. **No UI state in services:** Services only handle HTTP and DTO mapping. State belongs in hooks.
+> 5. **No business logic in screens:** Screens only compose UI and call hooks. All async logic, try/catch, and state management belongs in hooks.
+
+## 3. Workflow Checklist for AI
+When asked to add a new feature that connects to the backend, complete these steps exactly in this order:
+
+1. **Contract:** Create `services/{domain}/I{Domain}Service.ts` (Interface + DTOs).
+2. **Implementation:** Create `services/{domain}/{Domain}Service.ts` using `apiClient`.
+3. **Config:** Add base URL to `constants/Config.ts` if a new domain endpoint is required.
+4. **Hook:** Create `hooks/use{Feature}.ts`. Inject the service interface via parameter. Manage loading/error/data state here.
+5. **Screen:** Create `app/.../screen.tsx`. Instantiate the service interface at the **module level** (outside the component). Inject it into the hook. Compose the UI using Sentinel design tokens.
+
+---
+
+# PART 2: ARCHITECTURE & PATTERNS
 
 ## 1. Project Structure
 
@@ -11,283 +50,273 @@ samaj/
 ├── app/                    # Expo Router screens (UI only, zero business logic)
 │   └── (tabs)/
 ├── components/             # Reusable, stateless UI components
+│   ├── common/
 │   └── feed/
 ├── constants/
-│   ├── Config.ts           # API base URLs, host config
-│   └── unistyles.ts        # Design system — THE SINGLE SOURCE OF TRUTH for all UI tokens
+│   ├── Config.ts           # API base URL, HOST — only place for env-specific values
+│   └── unistyles.ts        # Sentinel Design System — single source of truth for all UI tokens
 ├── context/
-│   └── AuthContext.tsx     # Global auth state (token + session)
+│   └── AuthContext.tsx     # Global auth state (token + session lifecycle)
 ├── hooks/                  # Thin orchestration layer — state + calling services
 ├── services/               # API layer — one folder per domain
+│   ├── http/
+│   │   └── apiClient.ts    # Axios instance + interceptors (token injection, ApiError)
 │   ├── auth/
-│   │   ├── IAuthService.ts
-│   │   └── AuthService.ts
-│   ├── user/
-│   │   ├── IUserService.ts
-│   │   └── UserService.ts
-│   └── storage/
-│       ├── IStorageService.ts
-│       └── SecureStorageService.ts
-└── types/                  # Shared TypeScript types (non-service-specific)
+│   ├── post/
+│   └── comment/
+└── docs/
+    └── ARCHITECTURE.md     # ← you are here
 ```
 
 ---
 
-## 2. SOLID Principles — How We Apply Them
+## 2. SOLID Principles
 
-### S — Single Responsibility Principle
-Each file owns **exactly one concern**:
-
+### S — Single Responsibility
 | Layer | Responsibility |
 |---|---|
-| **Screen** (`app/`) | Compose UI + wire hook. Zero business logic. |
-| **Hook** (`hooks/`) | Manage async state (loading / error / data). Call one service. |
-| **Service** (`services/`) | Make HTTP calls for one domain. Return typed responses. |
-| **Interface** (`I*.ts`) | Define the contract. No implementation. |
-| **Component** (`components/`) | Render UI from props. No API calls. |
+| **Screen** | Compose UI + wire hook. Zero business logic. |
+| **Hook** | Manage async state (loading/error/data). Call one service. |
+| **Service** | Make HTTP calls for one domain. Return typed responses. |
+| **Interface** | Define the contract. No implementation. |
+| **Component** | Render UI from props. No API calls. |
 
-### O — Open / Closed Principle
-- Add a new API method to a service by **adding** to the class — don't modify existing methods.
-- Add a new status badge type by **extending** `STATUS_CONFIG` — don't modify `StatusBadge`.
-- Add new theme tokens to `unistyles.ts` under their existing category group.
-
-### L — Liskov Substitution Principle
-- Every concrete service (`AuthService`, `UserService`) must fully satisfy its interface.
-- Any mock that satisfies `IUserService` must be droppable into any hook or test without breaking anything.
-
-### I — Interface Segregation Principle
-- Keep interfaces small and role-focused (`IUserService` only knows about user API calls).
-- Don't merge unrelated methods into one interface.
-
-### D — Dependency Inversion Principle
+### D — Dependency Inversion
 - **Screens** instantiate the concrete service **once** (composition root) and inject it into hooks.
 - **Hooks** depend only on the **interface**, never the concrete class.
-- **AuthContext** is accessed via `useAuth()` — hooks never import `AuthContext` directly.
 
 ---
 
-## 3. Service Layer Pattern
+## 3. Networking — `apiClient`
 
-Every domain gets a folder under `services/` with two files:
+All HTTP calls go through **`services/http/apiClient.ts`** — a pre-configured Axios instance.
+
+```typescript
+// Request interceptor — injects Bearer token automatically
+apiClient.interceptors.request.use(async (config) => { ... });
+
+// Response interceptor — normalises errors into ApiError
+apiClient.interceptors.response.use(
+    (res) => res,
+    (err) => Promise.reject(new ApiError(message, status))
+);
+```
+
+### ApiError
+```typescript
+export class ApiError extends Error {
+    constructor(message: string, public readonly status: number) { super(message); }
+}
+```
+
+---
+
+## 4. Service Layer Pattern
+
+Every domain gets a folder under `services/` with two files.
 
 ### `I{Domain}Service.ts` — the contract
 ```typescript
-export interface User { ... }               // DTOs live here
-export interface UserSearchResponse { ... }
+// DTOs + interface live together
+export interface Post { _id: string; caption: string; likes: string[]; }
+export interface PostsResponse { posts: Post[]; }
 
-export interface IUserService {
-  searchUsers(query: string, token: string): Promise<UserSearchResponse>;
+export interface IPostService {
+    getAllPosts(): Promise<PostsResponse>;
+    likePost(postId: string): Promise<void>;
 }
 ```
 
 ### `{Domain}Service.ts` — the implementation
 ```typescript
-export class UserService implements IUserService {
-  private readonly baseUrl: string;
+export class PostService implements IPostService {
+    async getAllPosts(): Promise<PostsResponse> {
+        const { data } = await apiClient.get<PostsResponse>('/post/all');
+        return data;
+    }
 
-  constructor() {
-    this.baseUrl = Config.USER_API_BASE_URL;   // always from Config
-  }
-
-  async searchUsers(query: string, token: string): Promise<UserSearchResponse> {
-    const response = await fetch(`${this.baseUrl}/search/${encodeURIComponent(query)}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,      // always send token for protected routes
-      },
-    });
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message || `Failed: ${response.status}`);
-    return data;
-  }
+    async likePost(postId: string): Promise<void> {
+        try {
+            await apiClient.post(`/post/like/${postId}`);
+        } catch (error: any) {
+            // 409 (Conflict): swallow silently — optimistic state was already correct.
+            if (error instanceof ApiError && error.status === 409) return; 
+            throw error;
+        }
+    }
 }
 ```
 
-**Rules:**
-- Always use `Config.*` for base URLs — never hardcode.
-- Always check `!response.ok` and throw with the server message.
-- Log with a qualified prefix: `console.error('UserService.searchUsers:', error)`.
-- `encodeURIComponent()` all path params.
-- Auth token always comes in as a parameter — the service never reads storage directly.
+---
+
+## 5. Multipart / Image Upload Pattern
+
+Use `FormData` + `apiClient.post` with `Content-Type: multipart/form-data`:
+
+```typescript
+async createPost({ userId, caption, images }: CreatePostPayload): Promise<Post> {
+    const formData = new FormData();
+    if (caption.trim()) formData.append('caption', caption.trim());
+    images.forEach((img) => {
+        // RN requires the { uri, name, type } shape cast to `any`
+        formData.append('images', { uri: img.uri, name: img.name, type: img.type } as any);
+    });
+    const { data } = await apiClient.post<{ message: string; post: Post }>(
+        `/post/create/${userId}`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return data.post;
+}
+```
 
 ---
 
-## 4. Hook Layer Pattern
+## 6. Hook Layer Pattern
 
 Hooks are the **orchestration** layer — they call one service and manage async state.
 
+### Standard fetch hook
 ```typescript
-/**
- * useSearchUsers
- *
- * SRP: only manages the search-users async flow.
- * DIP: depends on IUserService interface, injected by the screen.
- */
-export const useSearchUsers = (userService: IUserService) => {
-  const [users, setUsers]     = useState<User[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+export const usePosts = (postService: IPostService) => {
+    const [posts, setPosts] = useState<Post[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-  const searchUsers = useCallback(async (query: string, token: string) => {
-    if (!query.trim()) { setUsers([]); return; }
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await userService.searchUsers(query, token);
-      setUsers(response.users);
-    } catch (err: any) {
-      setError(err.message ?? 'Failed to search users');
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [userService]);
+    const fetch = useCallback(async () => {
+        setLoading(true); setError(null);
+        try {
+            const { posts } = await postService.getAllPosts();
+            setPosts(posts);
+        } catch (err: any) {
+            setError(err.message ?? 'Failed to load posts');
+        } finally {
+            setLoading(false);
+        }
+    }, [postService]);
 
-  return { users, loading, error, searchUsers };
+    // Expose setPosts for optimistic updates
+    return { posts, setPosts, loading, error, refetch: fetch };
 };
 ```
 
-**Rules:**
-- Hook receives its **service via parameter** (DIP) — never `new UserService()` inside a hook.
-- Hook receives **token as a call-time argument** — it does not call `useAuth()` itself.
-- Always `setError(null)` before each attempt.
-- Always use `finally` to clear loading state.
-- One hook, one domain.
-
 ---
 
-## 5. Screen (Composition Root) Pattern
+## 7. Screen (Composition Root) Pattern
 
 Screens are the **only** place where concrete classes are instantiated.
 
 ```typescript
-// ── Composition root — stable instance per screen mount ───────
-const userService = new UserService();   // module-level, outside component
+// ── Composition root — module-level, stable across re-renders ──
+const postService = new PostService();
 
-export default function SearchScreen() {
-    const { token } = useAuth();   // token from context, not storage
-    const { searchUsers, users, loading, error } = useSearchUsers(userService);
+export default function FeedScreen() {
+    const { token } = useAuth();   // JWT from context only
+    const { posts, setPosts, loading, refetch } = usePosts(postService);
     // ...UI only below this line
 }
 ```
 
-**Rules:**
-- Instantiate service **outside** the component function (module-level) — stable across re-renders.
-- Get token from `useAuth()` — never import `SecureStorageService` in a screen.
-- No `fetch()`, `axios`, or business logic in screens.
-- No `try/catch` in screens — that belongs in hooks.
+---
+
+## 8. Media Picker Pattern (`expo-image-picker`)
+
+```typescript
+const handlePickImages = useCallback(async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') return Alert.alert('Permission required');
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        selectionLimit: 4 - images.length,   // respect current count
+        quality: 0.85,
+    });
+
+    if (result.canceled) return;
+    
+    // Map assets correctly
+    const picked: SelectedImage[] = result.assets.map((asset) => ({
+        uri: asset.uri,
+        previewUri: asset.uri,
+        name: asset.fileName ?? `image_${Date.now()}.jpg`,
+        type: asset.mimeType ?? 'image/jpeg',
+    }));
+    addImages(picked);
+}, [images.length, addImages]);
+```
 
 ---
 
-## 6. Design System — `constants/unistyles.ts`
+## 9. Design System — `constants/unistyles.ts`
 
-This file is the **single source of truth** for all UI tokens. Never use ad-hoc values in `StyleSheet`.
+This file is the **single source of truth**. Never use ad-hoc values in `StyleSheet`.
 
 ### Token Reference
-
-| Category | Access pattern | Example value |
+| Category | Access pattern | Example |
 |---|---|---|
 | Colors | `theme.colors.*` | `theme.colors.on_surface` |
-| Surface tiers | `theme.colors.surface_container_*` | `theme.colors.surface_container_low` |
 | Spacing | `theme.spacing.*` | `theme.spacing.lg` → 20dp |
-| Border radius | `theme.radius.*` | `theme.radius['2xl']` → 16dp |
-| Type sizes | `theme.typography.sizes.*` | `theme.typography.sizes.headline_lg` → 32sp |
-| Font families | `theme.typography.fonts.*` | `theme.typography.fonts.display` → `"Manrope"` |
-| Font weights | `theme.typography.weights.*` | `theme.typography.weights.bold` → `"700"` |
-| Elevation | `theme.elevation[n]` | `...theme.elevation[1]` |
+| Radius | `theme.radius.*` | `theme.radius['2xl']` → 16dp |
+| Fonts | `theme.typography.fonts.*` | `theme.typography.fonts.display` |
 | Ghost border | `theme.ghostBorder` | `...theme.ghostBorder` |
-| Gradients | `theme.gradients.*` | `theme.gradients.primary` |
-| Glass | `theme.glass.*` | `theme.glass.nav` |
-| Motion | `theme.motion.*` | `theme.motion.standardDuration` |
-
-### Typography Fonts
-- **`Manrope`** → `theme.typography.fonts.display` — Headings, titles, card names, numbers
-- **`PublicSans`** → `theme.typography.fonts.body` — Body text, labels, handles, descriptions
-
-### Surface Hierarchy (low nesting → high nesting)
-```
-background                          ← page canvas
-└── surface_container_low           ← search bars, input fields
-    └── surface_container           ← section backgrounds
-        └── surface_container_high  ← selected / active items
-            └── surface_container_lowest  ← cards sitting on containers
-```
-
-### Spacing Scale (4dp base unit)
-| Token | Value |
-|---|---|
-| `spacing.xs` | 4dp |
-| `spacing.sm` | 8dp |
-| `spacing.md` | 12dp |
-| `spacing.base` | 16dp |
-| `spacing.lg` | 20dp |
-| `spacing.xl` | 24dp |
-| `spacing['2xl']` | 32dp |
-| `spacing['3xl']` | 40dp |
-| `spacing['4xl']` | 48dp |
-| `spacing['5xl']` | 64dp |
-
-### Ghost Border Rule
-All elevated surfaces get a ghost border (felt, not seen):
-```typescript
-borderWidth: theme.ghostBorder.borderWidth,   // 1
-borderColor: theme.ghostBorder.borderColor,   // rgba(192, 201, 193, 0.15)
-```
-
-### Card Padding Rule (Trust Doc §5)
-Asymmetric padding on list items — more left than right:
-```typescript
-paddingLeft:  theme.spacing.xl,    // 24
-paddingRight: theme.spacing.base,  // 16
-```
 
 ### What to NEVER do
 ```typescript
 // ❌ Wrong — ad-hoc values break theming and dark mode
-style={{ fontSize: 32, color: '#333', borderRadius: 14, padding: 20 }}
+style={{ fontSize: 32, color: '#333', borderRadius: 14 }}
 
 // ✅ Correct — all values from the design system
 style={{
-  fontSize: theme.typography.sizes.headline_lg,
-  color: theme.colors.on_surface,
-  borderRadius: theme.radius['2xl'],
-  padding: theme.spacing.lg,
+    fontSize: theme.typography.sizes.headline_lg,
+    color: theme.colors.on_surface,
+    borderRadius: theme.radius['2xl'],
 }}
 ```
 
 ---
 
-## 7. Config Pattern
+## 10. Optimistic Update Pattern
 
-All environment-specific values live in `constants/Config.ts`:
+For write operations that affect visible counts (votes, likes), update UI before the API call:
 
 ```typescript
-const HOST = '192.168.29.117';
-const API_BASE_URL      = `http://${HOST}:4000/api/auth`;
-const USER_API_BASE_URL = `http://${HOST}:4000/api/user`;
-
-export const Config = { API_BASE_URL, USER_API_BASE_URL, HOST };
+const handleUpvote = useCallback(async (postId: string, isLiked: boolean) => {
+    setPosts((prev) => prev.map((p) => {
+        if (p._id !== postId) return p;
+        return {
+            ...p,
+            likes: isLiked ? p.likes.filter(id => id !== currentUserId) : [...p.likes, currentUserId],
+        };
+    }));
+    try {
+        if (isLiked) await postService.dislikePost(postId);
+        else         await postService.likePost(postId);
+    } catch {
+        refetch(); // revert to server truth on any real error
+    }
+}, [currentUserId, refetch, setPosts]);
 ```
 
-**To add a new domain:**
-1. Add `const MY_API_BASE_URL = ...` in `Config.ts`
-2. Export it from `Config`
-3. Use it in your new service constructor
+**Handling nested optimistic updates** (e.g. reply likes): the inner component (e.g. `CommentRow`) owns the sub-list state and handles its own optimistic update. The parent only provides the API callback.
 
 ---
 
-## 8. Adding a New Feature — Checklist
+## 11. API Response Envelope & Array Handling
 
-```
-[ ] Create services/myDomain/IMyDomainService.ts  — interface + DTOs
-[ ] Create services/myDomain/MyDomainService.ts   — HTTP implementation
-[ ] Add base URL to constants/Config.ts if needed
-[ ] Create hooks/useMyFeature.ts                  — inject IMyDomainService, manage state
-[ ] Create app/.../myScreen.tsx                   — composition root + UI only
-[ ] All styles use theme.* tokens — no ad-hoc values
-[ ] Service sends Authorization header for protected endpoints
-[ ] Hook uses finally to clear loading state
-[ ] Service logs with qualified prefix: ClassName.methodName
+Always defensively unwrap responses map and length operations:
+
+```typescript
+// Backend returns { replies: [...] }  NOT  [...]
+async getReplies(commentId: string): Promise<CommentReply[]> {
+    const { data } = await apiClient.get(`/comment/replies/${commentId}`);
+    // Unwrap envelope, fall back if plain array
+    return Array.isArray(data) ? data : (data.replies ?? []);
+}
+
+// ❌ Unsafe UI — crashes if backend omits the field
+const [items, setItems] = useState<Item[]>(raw ?? []);
+
+// ✅ Safe UI
+const [items, setItems] = useState<Item[]>(Array.isArray(raw) ? raw : []);
 ```

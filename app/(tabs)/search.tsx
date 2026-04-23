@@ -1,14 +1,3 @@
-/**
- * SearchScreen
- *
- * SOLID:
- *  SRP : only composes hook + UI; zero business logic here.
- *  DIP : instantiates UserService once (composition root), passes it into the
- *        hook so the hook stays decoupled from the concrete class.
- *        Token comes from AuthContext — screen doesn't know how it was stored.
- *  OCP : adding filters / tabs only requires extending JSX, not this logic.
- */
-
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
@@ -21,7 +10,6 @@ import {
 } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { Config } from '../../constants/Config';
-import { useAuth } from '../../hooks/useAuth';
 import { useSearchUsers } from '../../hooks/useSearchUsers';
 import { UserService } from '../../services/user/UserService';
 import { User } from '../../services/user/IUserService';
@@ -31,7 +19,6 @@ const userService = new UserService();
 
 export default function SearchScreen() {
     const { theme } = useUnistyles();
-    const { token } = useAuth();                           // DIP — only interface surface used
 
     // DIP: hook receives the service, not "new UserService()" inside
     const { searchUsers, users, loading, error } = useSearchUsers(userService);
@@ -44,10 +31,10 @@ export default function SearchScreen() {
             setQuery(text);
             if (debounceRef.current) clearTimeout(debounceRef.current);
             debounceRef.current = setTimeout(() => {
-                if (token) searchUsers(text, token);
+                searchUsers(text);            // token injected by interceptor
             }, 500);
         },
-        [searchUsers, token],
+        [searchUsers],
     );
 
     // ── Helpers ───────────────────────────────────────────────

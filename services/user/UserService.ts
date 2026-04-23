@@ -1,42 +1,28 @@
 /**
- * UserService – concrete HTTP implementation of IUserService.
+ * UserService – HTTP implementation of IUserService.
  *
  * SOLID:
- *  SRP: only handles user-related API calls.
- *  OCP: add new methods (getProfile, follow…) without touching existing ones.
- *  LSP: fully satisfies IUserService contract.
- *  DIP: depends on Config, not on any framework concern.
+ *  SRP : only maps user API responses to the IUserService contract.
+ *  OCP : add getProfile(), follow(), block()… without changing existing methods.
+ *  LSP : fully satisfies IUserService.
+ *  DIP : depends on apiClient abstraction, not raw HTTP details.
+ *
+ * Token injection is handled transparently by the apiClient request
+ * interceptor — this service never touches auth concerns.
  */
 
-import { Config } from "../../constants/Config";
+import { apiClient } from "../http/apiClient";
 import { IUserService, UserSearchResponse } from "./IUserService";
 
 export class UserService implements IUserService {
-  private readonly baseUrl: string;
-
-  constructor() {
-    this.baseUrl = Config.USER_API_BASE_URL;
-  }
-
-  async searchUsers(query: string, token: string): Promise<UserSearchResponse> {
+  async searchUsers(query: string): Promise<UserSearchResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/search/${encodeURIComponent(query)}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || `Search failed with status: ${response.status}`);
-      }
-
+      const { data } = await apiClient.get<UserSearchResponse>(
+        `/user/search/${encodeURIComponent(query)}`,
+      );
       return data;
-    } catch (error) {
-      console.error("UserService.searchUsers failed:", error);
+    } catch (error: any) {
+      console.error("UserService.searchUsers:", error.message);
       throw error;
     }
   }
