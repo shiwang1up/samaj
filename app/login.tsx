@@ -14,10 +14,8 @@ import {
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useLogin } from '../hooks/useLogin';
 import { AuthService } from '../services/auth/AuthService';
-import { SecureStorageService } from '../services/storage/SecureStorageService';
 
 const authService = new AuthService();
-const storageService = new SecureStorageService();
 
 export default function LoginScreen() {
     const router = useRouter();
@@ -26,17 +24,16 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [emailFocused, setEmailFocused] = useState(false);
     const [passwordFocused, setPasswordFocused] = useState(false);
-    const { login, loading, error } = useLogin(authService, storageService);
+    const { login, loading, error } = useLogin(authService);
 
     const handleLogin = async () => {
         if (!email || !password) {
             Alert.alert('Validation', 'Please enter both email and password.');
             return;
         }
-        const result = await login(email, password);
-        if (result.success) {
-            router.replace('/(tabs)');
-        }
+        // context.signIn (called inside useLogin) flips isAuthenticated,
+        // which causes useProtectedRoute to navigate to /(tabs) automatically.
+        await login(email, password);
     };
 
     return (

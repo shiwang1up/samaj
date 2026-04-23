@@ -1,3 +1,7 @@
+// ─── IUserService ─────────────────────────────────────────────
+// OCP: extend with new methods without modifying consumers.
+// DIP: screens and hooks depend on this interface, not the concrete class.
+
 export interface User {
   _id: string;
   username: string;
@@ -17,5 +21,6 @@ export interface UserSearchResponse {
 }
 
 export interface IUserService {
-  searchUsers(query: string): Promise<UserSearchResponse>;
+  /** Search users by query string. Requires a valid JWT token. */
+  searchUsers(query: string, token: string): Promise<UserSearchResponse>;
 }

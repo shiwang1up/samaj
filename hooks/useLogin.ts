@@ -1,43 +1,39 @@
-import { useState } from "react";
-import { AuthResponse, IAuthService } from "../services/auth/IAuthService";
-import { IStorageService } from "../services/storage/IStorageService";
+/**
+ * useLogin – calls auth API then persists the token via AuthContext.signIn.
+ *
+ * SRP: only responsible for the login flow.
+ * DIP: depends on IAuthService interface, not the concrete AuthService class.
+ */
 
-export const useLogin = (
-  authService: IAuthService,
-  storageService: IStorageService
-) => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+import { useState }        from 'react';
+import { IAuthService }    from '../services/auth/IAuthService';
+import { useAuth }         from './useAuth';
 
-  const login = async (
-    email: string,
-    password: string
-  ): Promise<AuthResponse> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await authService.login(email, password);
-      if (response.success && response.token) {
-        setToken(response.token);
-        await storageService.setItem("authToken", response.token);
-        // console.log("Login successful, token saved:", response.token);
-      } else {
-        setError(response.error || "Login failed");
-      }
-      return response;
-    } catch {
-      setError("An unexpected error occurred");
-      return { success: false, error: "An unexpected error occurred" };
-    } finally {
-      setLoading(false);
-    }
-  };
+export const useLogin = (authService: IAuthService) => {
+    const { signIn }                    = useAuth();
+    const [loading, setLoading]         = useState(false);
+    const [error,   setError]           = useState<string | null>(null);
 
-  return {
-    login,
-    loading,
-    error,
-    token,
-  };
+    const login = async (email: string, password: string) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await authService.login(email, password);
+            if (response.success && response.token) {
+                // Persist token and update global auth state in one call
+                await signIn(response.token);
+            } else {
+                setError(response.error ?? 'Login failed');
+            }
+            return response;
+        } catch {
+            const msg = 'An unexpected error occurred';
+            setError(msg);
+            return { success: false, error: msg };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return { login, loading, error };
 };

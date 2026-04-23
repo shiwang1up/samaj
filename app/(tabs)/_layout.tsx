@@ -9,62 +9,84 @@ export default function TabLayout() {
     return (
         <Tabs
             screenOptions={{
-                tabBarActiveTintColor: theme.colors.tint,
-                tabBarInactiveTintColor: theme.colors.dimmed,
                 headerShown: false,
+                tabBarActiveTintColor: theme.colors.primary,
+                tabBarInactiveTintColor: theme.colors.on_surface_variant,
                 tabBarStyle: {
-                    backgroundColor: theme.colors.background,
-                    borderTopColor: theme.colors.dimmed,
+                    backgroundColor: theme.colors.surface_container_lowest,
+                    borderTopWidth: 0, // No-Line rule
+                    ...theme.elevation[3],
                     ...Platform.select({
-                        android: {
-                            elevation: 4,
-                        },
                         ios: {
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: -2 },
-                            shadowOpacity: 0.1,
-                            shadowRadius: 4,
-                        }
-                    })
-                }
-            }}>
+                            paddingBottom: 20,
+                            height: 76,
+                        },
+                        android: {
+                            height: 64,
+                        },
+                    }),
+                },
+                tabBarLabelStyle: {
+                    fontSize: 10,
+                    fontWeight: theme.typography.weights.semibold,
+                    letterSpacing: 0.0,
+                    marginTop: 2,
+                },
+            }}
+        >
+            {/* HOME */}
             <Tabs.Screen
                 name="index"
                 options={{
                     title: 'Home',
-                    tabBarLabel: 'Home',
+                    tabBarLabel: 'HOME',
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="home" size={size} color={color} />
+                        <Ionicons name="home-outline" size={size} color={color} />
                     ),
                 }}
             />
+
+            {/* SEARCH */}
             <Tabs.Screen
                 name="search"
                 options={{
-                    title: 'Search',
-                    tabBarLabel: 'Search',
+                    tabBarLabel: 'SEARCH',
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="search" size={size} color={color} />
+                        <Ionicons name="search-outline" size={size} color={color} />
                     ),
                 }}
             />
+
+            {/* REPORT — central megaphone action */}
             <Tabs.Screen
                 name="messages"
                 options={{
-                    title: 'Messages',
-                    tabBarLabel: 'Messages',
+                    tabBarLabel: 'REPORT',
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="chatbubbles" size={size} color={color} />
+                        <Ionicons name="megaphone-outline" size={size} color={color} />
                     ),
                 }}
             />
+
+            {/* LEADERS */}
+            <Tabs.Screen
+                name="leaders"
+                options={{
+                    tabBarLabel: 'LEADERS',
+                    tabBarIcon: ({ color, size }) => (
+                        <Ionicons name="people-outline" size={size} color={color} />
+                    ),
+                }}
+            />
+
+            {/* PROFILE */}
             <Tabs.Screen
                 name="profile"
                 options={{
-                    title: 'Profile',
-                    tabBarLabel: 'Profile',
+                    tabBarLabel: 'PROFILE',
+                
                     tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="person" size={size} color={color} />
+                        <Ionicons name="person-outline" size={size} color={color} />
                     ),
                 }}
             />

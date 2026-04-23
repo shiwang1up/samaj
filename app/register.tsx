@@ -14,15 +14,13 @@ import {
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useRegister } from '../hooks/useRegister';
 import { AuthService } from '../services/auth/AuthService';
-import { SecureStorageService } from '../services/storage/SecureStorageService';
 
 const authService = new AuthService();
-const storageService = new SecureStorageService();
 
 export default function RegisterScreen() {
     const { theme } = useUnistyles();
     const router = useRouter();
-    const { register, loading, error } = useRegister(authService, storageService);
+    const { register, loading, error } = useRegister(authService);
 
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
@@ -37,10 +35,9 @@ export default function RegisterScreen() {
             Alert.alert('Validation', 'Please fill in all required fields.');
             return;
         }
-        const result = await register({ username, email, password, fullName, bio });
-        if (result.success) {
-            router.replace(result.token ? '/(tabs)' : '/login');
-        }
+        // context.signIn (called inside useRegister) updates isAuthenticated,
+        // which triggers useProtectedRoute to navigate to /(tabs) automatically.
+        await register({ username, email, password, fullName, bio });
     };
 
     const fieldProps = (name: string) => ({
