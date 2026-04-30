@@ -8,8 +8,9 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { useUnistyles, StyleSheet } from 'react-native-unistyles';
 import { Config } from '../../constants/Config';
+import { useAuth } from '../../hooks/useAuth';
 import { useSearchUsers } from '../../hooks/useSearchUsers';
 import { UserService } from '../../services/user/UserService';
 import { User } from '../../services/user/IUserService';
@@ -21,7 +22,8 @@ export default function SearchScreen() {
     const { theme } = useUnistyles();
 
     // DIP: hook receives the service, not "new UserService()" inside
-    const { searchUsers, users, loading, error } = useSearchUsers(userService);
+    const { user } = useAuth();
+    const { searchUsers, users, setUsers, loading, error } = useSearchUsers(userService);
     const [query, setQuery] = useState('');
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -44,9 +46,43 @@ export default function SearchScreen() {
         return url;
     }, []);
 
+    const handleFollowToggle = useCallback(async (targetUser: User) => {
+        if (!user) return;
+        const isFollowing = targetUser.followers?.includes(user._id);
+
+        // Optimistic update
+        setUsers(prevUsers => prevUsers.map(u => {
+            if (u._id === targetUser._id) {
+                const newFollowers = isFollowing 
+                    ? (u.followers || []).filter(id => id !== user._id)
+                    : [...(u.followers || []), user._id];
+                return { ...u, followers: newFollowers };
+            }
+            return u;
+        }));
+
+        try {
+            if (isFollowing) {
+                await userService.unfollowUser(targetUser._id);
+            } else {
+                await userService.followUser(targetUser._id);
+            }
+        } catch (err) {
+            // Revert optimistic update on error
+            setUsers(prevUsers => prevUsers.map(u => {
+                if (u._id === targetUser._id) {
+                    return targetUser; // Revert to original state
+                }
+                return u;
+            }));
+            console.error("Follow toggle failed:", err);
+        }
+    }, [user, setUsers]);
+
     // ── Render item (memoised) ────────────────────────────────
     const renderItem = useCallback(({ item }: { item: User }) => {
         const imageUri = getProfileImage(item.profilePicture);
+        const isFollowing = user ? item.followers?.includes(user._id) : false;
         return (
             <TouchableOpacity style={styles.userCard} activeOpacity={0.75}>
                 {/* Avatar */}
@@ -75,16 +111,24 @@ export default function SearchScreen() {
                     )}
                 </View>
 
-                {/* Follower chip */}
-                <View style={styles.followerChip}>
-                    <Text style={styles.followerCount}>
-                        {item.followers?.length ?? 0}
+                {/* Follower chip / Action */}
+                <View style={styles.actionArea}>
+                    <TouchableOpacity 
+                        style={[styles.followBtn, isFollowing && styles.followingBtn]}
+                        onPress={() => handleFollowToggle(item)}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={[styles.followBtnText, isFollowing && styles.followingBtnText]}>
+                            {isFollowing ? 'Following' : 'Follow'}
+                        </Text>
+                    </TouchableOpacity>
+                    <Text style={styles.statsText}>
+                        {item.followers?.length ?? 0} followers
                     </Text>
-                    <Text style={styles.followerLabel}>followers</Text>
                 </View>
             </TouchableOpacity>
         );
-    }, [getProfileImage]);
+    }, [getProfileImage, user, handleFollowToggle]);
 
     const isEmpty = !loading && !error && users.length === 0;
 
@@ -300,23 +344,40 @@ const styles = StyleSheet.create((theme) => ({
         marginTop: theme.spacing.xs,
         lineHeight: theme.typography.sizes.body_sm * theme.typography.leading.body,
     },
-    followerChip: {
-        alignItems: 'center',
+    actionArea: {
+        alignItems: 'flex-end',
         marginLeft: theme.spacing.sm,
-        minWidth: 44,
+        minWidth: 80,
     },
-    followerCount: {
-        fontFamily: theme.typography.fonts.display,
-        fontSize: theme.typography.sizes.title_sm,
-        fontWeight: theme.typography.weights.bold,
-        color: theme.colors.primary,
+    followBtn: {
+        backgroundColor: theme.colors.primary,
+        paddingHorizontal: theme.spacing.md,
+        paddingVertical: theme.spacing.xs,
+        borderRadius: theme.radius.full,
+        marginBottom: 4,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: 80,
     },
-    followerLabel: {
+    followingBtn: {
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: theme.colors.outline,
+    },
+    followBtnText: {
+        fontFamily: theme.typography.fonts.body,
+        fontSize: theme.typography.sizes.label_sm,
+        fontWeight: theme.typography.weights.semibold,
+        color: theme.colors.on_primary,
+    },
+    followingBtnText: {
+        color: theme.colors.on_surface,
+    },
+    statsText: {
         fontFamily: theme.typography.fonts.body,
         fontSize: theme.typography.sizes.label_sm,
         fontWeight: theme.typography.weights.regular,
         color: theme.colors.outline,
-        marginTop: 1,
     },
 
     // Empty / loading / error states

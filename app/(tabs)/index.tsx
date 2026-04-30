@@ -24,22 +24,26 @@ import { TopBar }                from '../../components/common/TopBar';
 import { CommentsBottomSheet }   from '../../components/feed/CommentsBottomSheet';
 import { PostImageCarousel }     from '../../components/feed/PostImageCarousel';
 import { StoryReel }             from '../../components/feed/StoryReel';
+import { StoryViewerModal }      from '../../components/feed/StoryViewerModal';
 import { ScopeTabs }             from '../../components/feed/ScopeTabs';
 
-import { MOCK_STORIES }       from '../../constants/feedMockData';
 import { Config }             from '../../constants/Config';
 import { useAuth }            from '../../hooks/useAuth';
 import { useComments }        from '../../hooks/useComments';
 import { useFeedScope }       from '../../hooks/useFeedScope';
 import { useLogout }          from '../../hooks/useLogout';
 import { usePosts }           from '../../hooks/usePosts';
+import { useStories }         from '../../hooks/useStories';
 import { CommentService }     from '../../services/comment/CommentService';
 import { PostService }        from '../../services/post/PostService';
+import { StoryService }       from '../../services/story/StoryService';
 import { Post }               from '../../services/post/IPostService';
+import { Story }              from '../../services/story/IStoryService';
 
 // ── Composition root ──────────────────────────────────────────
 const postService    = new PostService();
 const commentService = new CommentService();
+const storyService   = new StoryService();
 
 // ── Helpers ───────────────────────────────────────────────────
 // resolveImageUrl no longer needed in screen — PostImageCarousel handles it
@@ -138,6 +142,56 @@ export default function HomeScreen() {
     const { posts, setPosts, loading, error, refetch }   = usePosts(postService);
     const { comments, setComments, loading: commentsLoading, error: commentsError,
             fetchComments, reset: resetComments, addComment }         = useComments(commentService);
+    const { stories: rawStories, loading: storiesLoading, refetch: refetchStories } = useStories(storyService);
+
+    // Story viewer state
+    const [activeStoryGroup, setActiveStoryGroup] = useState<Story[] | null>(null);
+    const [viewedStories, setViewedStories]       = useState<Set<string>>(new Set());
+
+    // Group stories by user and map to IStory format
+    const { stories, groupedStoriesMap } = React.useMemo(() => {
+        const groups: Record<string, Story[]> = {};
+        for (const s of rawStories) {
+            const uid = s.user?._id || 'unknown';
+            if (!groups[uid]) groups[uid] = [];
+            groups[uid].push(s);
+        }
+
+        const reelStories = Object.values(groups).map((group, index) => {
+            const s = group[0]; // Representative story for the user circle
+            const colors = ['#E57373', '#F06292', '#BA68C8', '#9575CD', '#7986CB', '#64B5F6'];
+            let colorIndex = index % colors.length;
+            if (s.user?._id) {
+                let hash = 0;
+                for (let i = 0; i < s.user._id.length; i++) {
+                    hash = s.user._id.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                colorIndex = Math.abs(hash) % colors.length;
+            }
+
+            const avatarUri = s.user?.profilePicture?.includes('localhost')
+                ? s.user.profilePicture.replace('localhost', Config.HOST)
+                : s.user?.profilePicture || undefined;
+
+            const hasUnseen = group.some((st) => !viewedStories.has(st._id));
+
+            return {
+                id: s.user?._id || s._id,
+                label: s.user?.username || 'Unknown',
+                initial: (s.user?.fullName || s.user?.username || '?').charAt(0).toUpperCase(),
+                avatarColor: colors[colorIndex],
+                hasUnseen,
+                imageUri: avatarUri
+            };
+        });
+
+        return { stories: reelStories, groupedStoriesMap: groups };
+    }, [rawStories, viewedStories]);
+
+    const handleRefetch = useCallback(() => {
+        refetch();
+        refetchStories();
+    }, [refetch, refetchStories]);
 
     // Comments sheet state
     const [activePostId, setActivePostId]       = useState<string | null>(null);
@@ -262,9 +316,14 @@ export default function HomeScreen() {
         <>
             {/* Stories */}
             <StoryReel
-                stories={MOCK_STORIES}
+                stories={stories}
                 onAddStory={() => console.log('add story')}
-                onStoryPress={(s) => console.log('story', s.id)}
+                onStoryPress={(s) => {
+                    const group = groupedStoriesMap[s.id];
+                    if (group && group.length > 0) {
+                        setActiveStoryGroup(group);
+                    }
+                }}
             />
 
             {/* Page title */}
@@ -340,8 +399,8 @@ export default function HomeScreen() {
                 showsVerticalScrollIndicator={false}
                 refreshControl={
                     <RefreshControl
-                        refreshing={loading}
-                        onRefresh={refetch}
+                        refreshing={loading || storiesLoading}
+                        onRefresh={handleRefetch}
                         tintColor={theme.colors.primary}
                     />
                 }
@@ -367,6 +426,21 @@ export default function HomeScreen() {
                 onReplyUpvote={handleReplyUpvote}
                 onAddComment={handleAddComment}
                 onClose={handleCloseSheet}
+            />
+
+            {/* Story Viewer Modal */}
+            <StoryViewerModal
+                visible={activeStoryGroup !== null}
+                userStories={activeStoryGroup}
+                onClose={() => setActiveStoryGroup(null)}
+                onStoryViewed={(storyId) => {
+                    setViewedStories(prev => {
+                        if (prev.has(storyId)) return prev;
+                        const next = new Set(prev);
+                        next.add(storyId);
+                        return next;
+                    });
+                }}
             />
         </View>
     );

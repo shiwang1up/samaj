@@ -14,6 +14,7 @@ import {
     Text,
     TouchableOpacity,
     View,
+    Image,
 } from 'react-native';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 
@@ -69,7 +70,11 @@ function StoryBubble({
             >
                 {/* Circle avatar */}
                 <View style={[styles.circle, { backgroundColor: story.avatarColor }]}>
-                    <Text style={styles.initial}>{story.initial}</Text>
+                    {story.imageUri ? (
+                        <Image source={{ uri: story.imageUri }} style={styles.image} />
+                    ) : (
+                        <Text style={styles.initial}>{story.initial}</Text>
+                    )}
                 </View>
             </View>
 
@@ -177,6 +182,12 @@ const styles = StyleSheet.create((theme) => ({
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
+    },
+
+    image: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
     },
 
     initial: {

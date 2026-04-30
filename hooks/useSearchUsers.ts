@@ -40,5 +40,5 @@ export const useSearchUsers = (userService: IUserService) => {
     [userService],
   );
 
-  return { users, loading, error, searchUsers };
+  return { users, setUsers, loading, error, searchUsers };
 };
